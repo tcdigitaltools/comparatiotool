@@ -1,0 +1,70 @@
+# ========================================
+# Multi-stage Dockerfile for Spring Boot Backend
+# Build: Maven 3.9 + JDK 21
+# Runtime: Eclipse Temurin JRE 21 Alpine
+# ========================================
+
+# ========================================
+# Stage 1: Builder
+# ========================================
+FROM maven:3.9-eclipse-temurin-21 AS builder
+
+WORKDIR /build
+
+# Copy Maven wrapper and pom.xml first for better layer caching
+COPY mvnw mvnw.cmd pom.xml ./
+COPY .mvn .mvn
+
+# Download dependencies (cached layer if pom.xml unchanged)
+RUN mvn dependency:go-offline -B
+
+# Copy source code
+COPY src ./src
+
+# Build the application (skip tests for faster builds)
+RUN mvn -q clean package -DskipTests
+
+# Verify the JAR was created
+RUN ls -lh target/*.jar
+
+# ========================================
+# Stage 2: Runtime
+# ========================================
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S appuser && \
+    adduser -u 1001 -S appuser -G appuser
+
+# Copy the built JAR from builder stage
+COPY --from=builder /build/target/comparatio-0.0.1-SNAPSHOT.jar /app/app.jar
+
+# Create uploads directory with proper permissions
+RUN mkdir -p /app/uploads/profiles /app/uploads/clients && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Environment variables
+ENV JAVA_OPTS="" \
+    APP_PORT=8080 \
+    MONGO_URI=mongodb://localhost:27017 \
+    MONGO_DB=compa_demo \
+    FILE_STORAGE_PATH=/app/uploads
+
+# Expose application port
+EXPOSE 8080
+
+# Health check using Spring Boot Actuator
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# Entry point with shell support for JAVA_OPTS expansion
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+

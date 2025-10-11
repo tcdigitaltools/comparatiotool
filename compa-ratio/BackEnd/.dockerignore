@@ -1,0 +1,57 @@
+# Maven build artifacts
+target/
+!target/comparatio-*.jar
+
+# Maven wrapper artifacts (we copy them explicitly)
+# .mvn/
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Test reports
+test-results/
+coverage/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+
+# Docker
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Environment files
+.env
+.env.*
+!.env.example
+

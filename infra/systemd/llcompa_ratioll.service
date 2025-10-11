@@ -1,0 +1,32 @@
+# ========================================
+# Systemd Service for llcompa_ratioll
+# Install: sudo cp infra/systemd/llcompa_ratioll.service /etc/systemd/system/
+# Enable:  sudo systemctl enable llcompa_ratioll.service
+# Start:   sudo systemctl start llcompa_ratioll.service
+# ========================================
+
+[Unit]
+Description=llcompa_ratioll Docker Compose Application
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/comparatiotool
+EnvironmentFile=/opt/comparatiotool/infra/.env
+
+# Start command
+ExecStart=/usr/bin/docker compose -f /opt/comparatiotool/infra/docker-compose.prod.yml --env-file /opt/comparatiotool/infra/.env up -d
+
+# Stop command
+ExecStop=/usr/bin/docker compose -f /opt/comparatiotool/infra/docker-compose.prod.yml --env-file /opt/comparatiotool/infra/.env down
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
+

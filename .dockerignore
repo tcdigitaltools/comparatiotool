@@ -1,0 +1,54 @@
+# Root .dockerignore for the entire repository
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Documentation
+*.md
+README.md
+docs/
+
+# CI/CD
+.gitlab-ci.yml
+Jenkinsfile
+.travis.yml
+.circleci/
+
+# Docker
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+
+# Logs
+*.log
+logs/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Infrastructure (when building services separately)
+infra/
+
