@@ -1,0 +1,97 @@
+package talentcapitalme.com.comparatio.service;
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import talentcapitalme.com.comparatio.dto.CalcRequest;
+import talentcapitalme.com.comparatio.dto.CalcResponse;
+import talentcapitalme.com.comparatio.entity.AdjustmentMatrix;
+import talentcapitalme.com.comparatio.exception.MatrixNotFoundException;
+import talentcapitalme.com.comparatio.exception.ValidationException;
+import talentcapitalme.com.comparatio.repository.AdjustmentMatrixRepository;
+import talentcapitalme.com.comparatio.security.Authz;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+// Handles individual compensation calculations
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class CompensationService implements ICompensationService {
+
+    private final AdjustmentMatrixRepository matrixRepo;
+    private final PerformanceRatingService performanceRatingService;
+
+    @Timed(value = "calculation.time", description = "Time taken for compensation calculations")
+    @Counted(value = "calculation.count", description = "Number of compensation calculations performed")
+    public CalcResponse calculate(CalcRequest req) {
+        validateCalculationRequest(req);
+        
+        String clientId = Authz.getCurrentUserClientId();
+        BigDecimal compa = req.getCurrentSalary()
+                .divide(req.getMidOfScale(), 6, RoundingMode.HALF_UP);
+
+        int perfBucket = performanceRatingService.calculatePerformanceBucket(req.getPerformanceRating());
+
+        AdjustmentMatrix cell = matrixRepo.findClientActiveCell(perfBucket, compa, clientId)
+                .orElseThrow(() -> new MatrixNotFoundException("No adjustment matrix found for client '" + clientId + 
+                    "'. Please contact your administrator to set up compensation matrices."));
+
+        BigDecimal pct = (req.getYearsExperience() < 5) ? cell.getPctLt5Years() : cell.getPctGte5Years();
+        BigDecimal newSalary = req.getCurrentSalary()
+                .multiply(BigDecimal.ONE.add(pct.movePointLeft(2)))
+                .setScale(2, RoundingMode.HALF_UP);
+        
+        return new CalcResponse(compa, compaLabel(cell), pct, newSalary);
+    }
+
+    private void validateCalculationRequest(CalcRequest req) {
+        if (req == null) {
+            throw new ValidationException("Calculation request cannot be null");
+        }
+        
+        if (req.getCurrentSalary() == null) {
+            throw new ValidationException("Current salary is required");
+        }
+        if (req.getMidOfScale() == null) {
+            throw new ValidationException("Mid of scale is required");
+        }
+        if (req.getPerformanceRating() == null) {
+            throw new ValidationException("Performance rating is required");
+        }
+        if (req.getYearsExperience() == null) {
+            throw new ValidationException("Years of experience is required");
+        }
+        
+        if (req.getCurrentSalary().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidationException("Current salary must be positive");
+        }
+        if (req.getMidOfScale().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidationException("Mid of scale must be positive");
+        }
+        // Validate performance rating against user's scale
+        if (!performanceRatingService.isValidPerformanceRating(req.getPerformanceRating())) {
+            var scale = performanceRatingService.getUserPerformanceRatingScale();
+            throw new ValidationException(String.format("Performance rating must be between 1 and %d for %s", 
+                    scale.getMaxRating(), scale.getDisplayName()));
+        }
+        if (req.getYearsExperience() < 0) {
+            throw new ValidationException("Years of experience cannot be negative");
+        }
+        
+        // Business logic validation
+        if (req.getCurrentSalary().compareTo(req.getMidOfScale().multiply(BigDecimal.valueOf(3))) > 0) {
+            log.warn("Current salary is more than 3x mid of scale for employee: {}", req.getEmployeeCode());
+        }
+    }
+
+    private String compaLabel(AdjustmentMatrix c) {
+        BigDecimal from = c.getCompaFrom().multiply(BigDecimal.valueOf(100));
+        BigDecimal to = c.getCompaTo().multiply(BigDecimal.valueOf(100));
+        boolean open = c.getCompaTo().compareTo(BigDecimal.valueOf(9.99)) >= 0; // treat >= 9.99 as +
+        return open ? from.stripTrailingZeros().toPlainString() + "%+"
+                : from.stripTrailingZeros().toPlainString() + "%–" + to.stripTrailingZeros().toPlainString() + "%";
+    }
+
+}

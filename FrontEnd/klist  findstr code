@@ -1,0 +1,150 @@
+warning: in the working copy of 'src/features/admin/matrix/components/CompaRatioMatrix.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/features/admin/matrix/components/CompaRatioMatrix.tsx b/src/features/admin/matrix/components/CompaRatioMatrix.tsx[m
+[1mindex d620ec9..2bbc27e 100644[m
+[1m--- a/src/features/admin/matrix/components/CompaRatioMatrix.tsx[m
+[1m+++ b/src/features/admin/matrix/components/CompaRatioMatrix.tsx[m
+[36m@@ -1,442 +1,487 @@[m
+ 'use client';[m
+ [m
+[31m-import { BarChart3 } from 'lucide-react';[m
+[32m+[m[32mimport { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react';[m
+[32m+[m[32mimport { BarChart3, Save, Check } from 'lucide-react';[m
+[32m+[m[32mimport { matrixService } from '@/lib/api';[m
+[32m+[m[32mimport { MatrixResponse } from '@/lib/api/types';[m
+[32m+[m
+[32m+[m[32m// Matrix grid structure: 3 performance ratings × 6 compa ratio ranges = 18 cells[m
+[32m+[m[32m// Each cell has 2 input fields (pctLt5Years, pctGte5Years) = 36 total inputs[m
+[32m+[m[32minterface MatrixCell {[m
+[32m+[m[32m  id: string;[m
+[32m+[m[32m  pctLt5Years: number;[m
+[32m+[m[32m  pctGte5Years: number;[m
+[32m+[m[32m  compaFrom: number;[m
+[32m+[m[32m  compaTo: number;[m
+[32m+[m[32m  perfBucket: number;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32minterface MatrixGrid {[m
+[32m+[m[32m  [key: string]: MatrixCell; // Key format: "perfBucket_compaRange" (e.g., "3_<70%")[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32minterface CompaRatioMatrixProps {[m
+[32m+[m[32m  clientId: string;[m
+[32m+[m[32m  onSaveChanges: () => void;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mconst CompaRatioMatrix = forwardRef<{[m
+[32m+[m[32m  saveChanges: () => void;[m
+[32m+[m[32m}, CompaRatioMatrixProps>(({ clientId, onSaveChanges }, ref) => {[m
+[32m+[m[32m  const [matrixData, setMatrixData] = useState<MatrixGrid>({});[m
+[32m+[m[32m  const [isLoading, setIsLoading] = useState(true);[m
+[32m+[m[32m  const [error, setError] = useState<string | null>(null);[m
+[32m+[m[32m  const [isSaving, setIsSaving] = useState(false);[m
+[32m+[m[32m  const [saveSuccess, setSaveSuccess] = useState(false);[m
+[32m+[m
+[32m+[m[32m  // Initialize matrix grid dynamically from backend data[m
+[32m+[m[32m  const initializeMatrixGrid = useCallback((matrices: MatrixResponse[]) => {[m[41m [m
+[32m+[m[32m    const grid: MatrixGrid = {};[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Extract unique performance buckets from backend data[m
+[32m+[m[32m    const performanceRatings = [...new Set(matrices.map(m => m.perfBucket))].sort((a, b) => b - a); // Sort desc (3,2,1)[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Extract unique compa ranges from backend data[m
+[32m+[m[32m    const compaRanges = matrices.map(matrix => {[m
+[32m+[m[32m      const rangeKey = getCompaRangeKey(matrix.compaFrom, matrix.compaTo);[m
+[32m+[m[32m      return {[m
+[32m+[m[32m        key: rangeKey,[m
+[32m+[m[32m        compaFrom: matrix.compaFrom,[m
+[32m+[m[32m        compaTo: matrix.compaTo[m
+[32m+[m[32m      };[m
+[32m+[m[32m    });[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Remove duplicates based on compaFrom/compaTo[m
+[32m+[m[32m    const uniqueCompaRanges = compaRanges.filter((range, index, self) =>[m[41m [m
+[32m+[m[32m      index === self.findIndex(r => r.compaFrom === range.compaFrom && r.compaTo === range.compaTo)[m
+[32m+[m[32m    );[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Sort compa ranges by compaFrom value[m
+[32m+[m[32m    uniqueCompaRanges.sort((a, b) => a.compaFrom - b.compaFrom);[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Build grid dynamically[m
+[32m+[m[32m    performanceRatings.forEach(perf => {[m
+[32m+[m[32m      uniqueCompaRanges.forEach(range => {[m
+[32m+[m[32m        const key = `${perf}_${range.key}`;[m
+[32m+[m[32m        grid[key] = {[m[41m [m
+[32m+[m[32m          id: '',[m
+[32m+[m[32m          pctLt5Years: 0,[m[41m [m
+[32m+[m[32m          pctGte5Years: 0,[m
+[32m+[m[32m          compaFrom: range.compaFrom,[m
+[32m+[m[32m          compaTo: range.compaTo,[m
+[32m+[m[32m          perfBucket: perf[m
+[32m+[m[32m        };[m
+[32m+[m[32m      });[m
+[32m+[m[32m    });[m
+[32m+[m[41m    [m
+[32m+[m[32m    return grid;[m
+[32m+[m[32m  }, []);[m
+[32m+[m
+[32m+[m[32m  // Load matrix data from API[m
+[32m+[m[32m  const loadMatrixData = useCallback(async (clientId: string) => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      setIsLoading(true);[m
+[32m+[m[32m      setError(null);[m
+[32m+[m[41m      [m
+[32m+[m[32m      console.log('Loading matrix data for client:', clientId);[m
+[32m+[m[32m      const matrices = await matrixService.getClientMatrices(clientId);[m
+[32m+[m[32m      console.log('Received matrices from API:', matrices);[m
+[32m+[m[41m      [m
+[32m+[m[32m      // Transform API data to grid format using dynamic structure[m
+[32m+[m[32m      const grid = initializeMatrixGrid(matrices);[m
+[32m+[m[41m      [m
+[32m+[m[32m      matrices.forEach(matrix => {[m
+[32m+[m[32m        const rangeKey = getCompaRangeKey(matrix.compaFrom, matrix.compaTo);[m
+[32m+[m[32m        const key = `${matrix.perfBucket}_${rangeKey}`;[m
+[32m+[m[41m        [m
+[32m+[m[32m        console.log(`Matrix ${matrix.id}: compaFrom=${matrix.compaFrom}, compaTo=${matrix.compaTo}, rangeKey=${rangeKey}, key=${key}`);[m
+[32m+[m[41m        [m
+[32m+[m[32m        // Convert to numbers to handle both number and string responses from API[m
+[32m+[m[32m        const pctLt5Years = typeof matrix.pctLt5Years === 'string'[m[41m [m
+[32m+[m[32m          ? parseFloat(matrix.pctLt5Years)[m[41m [m
+[32m+[m[32m          : matrix.pctLt5Years;[m
+[32m+[m[32m        const pctGte5Years = typeof matrix.pctGte5Years === 'string'[m[41m [m
+[32m+[m[32m          ? parseFloat(matrix.pctGte5Years)[m[41m [m
+[32m+[m[32m          : matrix.pctGte5Years;[m
+[32m+[m[41m        [m
+[32m+[m[32m        console.log(`Mapping matrix ${matrix.id}: pctLt5Years=${pctLt5Years}, pctGte5Years=${pctGte5Years}`);[m
+[32m+[m[41m        [m
+[32m+[m[32m        if (grid[key]) {[m
+[32m+[m[32m          grid[key] = {[m
+[32m+[m[32m            ...grid[key],[m
+[32m+[m[32m            id: matrix.id,[m
+[32m+[m[32m            pctLt5Years: pctLt5Years,[m
+[32m+[m[32m            pctGte5Years: pctGte5Years[m
+[32m+[m[32m          };[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m          console.warn(`Grid key not found: ${key} for matrix ${matrix.id}`);[m
+[32m+[m[32m        }[m
+[32m+[m[32m      });[m
+[32m+[m[41m      [m
+[32m+[m[32m      console.log('Final grid data:', grid);[m
+[32m+[m[32m      console.log('Final grid data for 3_130%>:', grid['3_130%>']);[m
+[32m+[m[32m      setMatrixData(grid);[m
+[32m+[m[32m    } catch (err) {[m
+[32m+[m[32m      console.error('Error loading matrix data:', err);[m
+[32m+[m[32m      setError('Failed to load matrix data');[m
+[32m+[m[32m      // Fallback to empty grid if API fails[m
+[32m+[m[32m      setMatrixData({});[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setIsLoading(false);[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }, [initializeMatrixGrid]);[m
+[32m+[m
+[32m+[m[32m  // Convert compa range to key format[m
+[32m+[m[32m  const getCompaRangeKey = (compaFrom: number | string, compaTo: number | string): string => {[m
+[32m+[m[32m    // Convert to numbers to handle both string and number inputs[m
+[32m+[m[32m    const from = typeof compaFrom === 'string' ? parseFloat(compaFrom) : compaFrom;[m
+[32m+[m[32m    const to = typeof compaTo === 'string' ? parseFloat(compaTo) : compaTo;[m
+[32m+[m[41m    [m
+[32m+[m[32m    if (from === 0.00 && to === 0.70) return '<70%';[m
+[32m+[m[32m    if (from === 0.71 && to === 0.85) return '71-85%';[m
+[32m+[m[32m    if (from === 0.86 && to === 1.00) return '86-100%';[m
+[32m+[m[32m    if (from === 1.01 && to === 1.15) return '101-115%';
