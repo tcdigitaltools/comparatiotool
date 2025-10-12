@@ -66,6 +66,10 @@ public class AuthService implements IAuthService {
             // Re-throw our custom exception
             throw e;
         } catch (AuthenticationException e) {
+            // Log the actual authentication error for debugging
+            System.err.println("❌ Authentication failed for: " + request.getEmail());
+            System.err.println("❌ Error: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            e.printStackTrace();
             throw new UnauthorizedException("Invalid email or password");
         }
     }
