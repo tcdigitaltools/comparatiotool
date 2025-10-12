@@ -83,7 +83,11 @@ export const useAuth = () => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }));
       
+      // Debug logging
+      console.log('🔐 Attempting login with:', { email: credentials.email, passwordLength: credentials.password?.length });
+      
       const tokenResponse = await authService.login(credentials);
+      console.log('✅ Login successful, token received');
       
       if (typeof window !== 'undefined') {
         localStorage.setItem('authToken', tokenResponse.token);
@@ -120,6 +124,14 @@ export const useAuth = () => {
       
       return { success: true };
     } catch (error: unknown) {
+      // Enhanced error logging
+      console.error('❌ Login failed:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: { error?: string; message?: string } } };
+        console.error('❌ Response status:', axiosError.response?.status);
+        console.error('❌ Response data:', axiosError.response?.data);
+      }
+      
       setAuthState(prev => ({ ...prev, isLoading: false }));
       
       if (error && typeof error === 'object' && 'response' in error) {
