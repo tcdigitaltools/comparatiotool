@@ -1,6 +1,7 @@
 package talentcapitalme.com.comparatio.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -23,6 +24,7 @@ import talentcapitalme.com.comparatio.security.Authz;
 
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService implements IAuthService {
@@ -67,9 +69,9 @@ public class AuthService implements IAuthService {
             throw e;
         } catch (AuthenticationException e) {
             // Log the actual authentication error for debugging
-            System.err.println("❌ Authentication failed for: " + request.getEmail());
-            System.err.println("❌ Error: " + e.getClass().getSimpleName() + " - " + e.getMessage());
-            e.printStackTrace();
+            log.error("❌ Authentication failed for: {}", request.getEmail());
+            log.error("❌ Error type: {} - Message: {}", e.getClass().getSimpleName(), e.getMessage());
+            log.error("❌ Stack trace:", e);
             throw new UnauthorizedException("Invalid email or password");
         }
     }
