@@ -2,7 +2,6 @@ package talentcapitalme.com.comparatio.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -39,13 +38,13 @@ public class WebSecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity
                 // ✅ Enable CORS
-                .cors().and()
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // ✅ Disable CSRF (important for API + React frontend)
                 .csrf(csrf -> csrf.disable())
                 // ✅ Authorization rules
                 .authorizeHttpRequests(request -> request
                         // Public endpoints
-                        .requestMatchers("/api/auth/login", "/api/auth/logout").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/logout", "/api/auth/register").permitAll()
                         .requestMatchers(
                                 "/swagger-ui/**", "/swagger-ui.html",
                                 "/v3/api-docs", "/v3/api-docs/**",
@@ -53,9 +52,8 @@ public class WebSecurityConfig {
                         ).permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
-                        // Admin-only endpoints
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register")
-                        .hasAnyRole("SUPER_ADMIN", "CLIENT_ADMIN")
+                        // Admin-only endpoints - now handled by AuthService logic
+                        // (first user can register, subsequent users need auth)
                         .requestMatchers("/api/users/**")
                         .hasAnyRole("SUPER_ADMIN", "CLIENT_ADMIN")
                         .requestMatchers("/api/matrix/**", "/api/admin/matrix/**")

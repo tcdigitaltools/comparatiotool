@@ -47,9 +47,15 @@ apiClient.interceptors.response.use(
       if (axiosError.response?.status === 401) {
         // Handle unauthorized access - only in browser environment
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('user');
-          window.location.href = '/';
+          // Don't redirect if we're on login page or if this is a login request
+          const isLoginPage = window.location.pathname === '/';
+          const isLoginRequest = axiosError.response?.config?.url?.includes('/api/auth/login');
+          
+          if (!isLoginPage && !isLoginRequest) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            window.location.href = '/';
+          }
         }
       }
     }
