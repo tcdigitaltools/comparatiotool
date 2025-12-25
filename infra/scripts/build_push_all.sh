@@ -61,9 +61,13 @@ echo ""
 # Build and push frontend
 echo "🎨 Building frontend image..."
 echo "   Image: ${FRONTEND_IMAGE:-${DOCKERHUB_USERNAME}/compa-ratio-frontend}"
+# Use HTTPS API URL (use api subdomain if available, otherwise same domain)
+API_URL="${NEXT_PUBLIC_API_URL:-https://api.talentcapitalme.com}"
+echo "   API URL: ${API_URL}"
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
     --file FrontEnd/Dockerfile.llcompa_ratioll \
+    --build-arg NEXT_PUBLIC_API_URL="${API_URL}" \
     --tag "${FRONTEND_IMAGE:-${DOCKERHUB_USERNAME}/compa-ratio-frontend}:latest" \
     --tag "${FRONTEND_IMAGE:-${DOCKERHUB_USERNAME}/compa-ratio-frontend}:sha-${SHORT_SHA}" \
     --push \

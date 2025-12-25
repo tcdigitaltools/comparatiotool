@@ -23,7 +23,7 @@ services:
 
   # Backend Service (using pre-built image from Docker Hub)
   backend:
-    image: ${BACKEND_IMAGE:-DOCKERHUB_USERNAME/compa-ratio-backend}:latest
+    image: ${BACKEND_IMAGE:-talentcapital/comparatio-backend}:latest
     container_name: comparatio-backend-prod
     restart: unless-stopped
     ports:
@@ -54,7 +54,7 @@ services:
 
   # Frontend Service (using pre-built image from Docker Hub)
   frontend:
-    image: ${FRONTEND_IMAGE:-DOCKERHUB_USERNAME/compa-ratio-frontend}:latest
+    image: ${FRONTEND_IMAGE:-talentcapital/comparatio-frontend}:latest
     container_name: comparatio-frontend-prod
     restart: unless-stopped
     ports:
